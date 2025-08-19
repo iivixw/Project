@@ -1,8 +1,21 @@
-# React + Vite
+วิธีทดสอบบนเครื่องใหม่ (หรือหลัง clone)
+# 1) โคลน
+git clone https://github.com/iivixw/Project.git
+cd Project
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# 2) (สำคัญ) สร้างไฟล์ .env สำหรับ API ถ้ายังไม่มีใน repo
+#   *ไฟล์นี้ปกติเราไม่ commit ไว้*
+type NUL > api\.env
+echo PORT=5000>> api\.env
+echo DB_HOST=mysql>> api\.env
+echo DB_PORT=3306>> api\.env
+echo DB_NAME=appdb>> api\.env
+echo DB_USER=appuser>> api\.env
+echo DB_PASS=apppass>> api\.env
 
-Currently, two official plugins are available:
+# 3) รัน docker
+docker compose up -d --build
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+# 4) ดูสถานะ/โล๊ก
+docker compose ps
+docker compose logs -f
