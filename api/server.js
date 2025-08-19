@@ -1,25 +1,23 @@
-require('dotenv').config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const mysql = require("mysql");
 const multer = require("multer");
+
 const app = express();
 
-const SECRET_KEY = process.env.JWT_SECRET || "your-secret-key";
+// ใช้การเชื่อมต่อจาก db.js (ซึ่ง connect แล้ว)
+const db = require("./db");
 
-const db = mysql.createConnection({
-  host: process.env.DB_HOST || "localhost",      // เปลี่ยนจาก localhost เป็น .env
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
-  database: process.env.DB_NAME || "clean_city_db",
-  port: process.env.DB_PORT || 3306,
+// route ทดสอบ DB
+app.get("/db-ping", (req, res) => {
+  db.query("SELECT 1 AS ok", (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ ok: rows[0].ok === 1 });
+  });
 });
 
-db.connect((err) => {
-  if (err) {
-    console.error("ไม่สามารถเชื่อมต่อฐานข้อมูลได้:", err);
-    return;
-  }
-  console.log("เชื่อมต่อกับฐานข้อมูลเรียบร้อย");
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
