@@ -1,14 +1,16 @@
-# ใช้ PHP 8.1 + Apache
-FROM php:8.1-apache
+FROM php:8.2-apache
 
-# ติดตั้ง extension พื้นฐานที่ใช้บ่อย (mysqli, pdo_mysql)
-RUN docker-php-ext-install mysqli pdo pdo_mysql
-
-# เปิดใช้ mod_rewrite ของ Apache (เผื่อใช้ .htaccess)
+# เปิด mod_rewrite ถ้าจำเป็น
 RUN a2enmod rewrite
 
-# โฟลเดอร์ทำงานหลัก
+# ติดตั้ง extension ที่มักใช้กับ MySQL
+RUN docker-php-ext-install mysqli pdo pdo_mysql
+
+# ตั้งค่า DocumentRoot เป็น /var/www/html (ค่าเริ่ม)
 WORKDIR /var/www/html
 
-# (ทางเลือก) copy php.ini ถ้ามีไฟล์ปรับแต่ง
-# COPY ./php.ini /usr/local/etc/php/php.ini
+# คัดลอกโค้ดเข้า image (ใน compose เรา mount โฟลเดอร์อยู่แล้ว บรรทัดนี้ optional)
+# COPY . /var/www/html
+
+# กำหนดสิทธิ์พื้นฐาน
+RUN chown -R www-data:www-data /var/www/html
