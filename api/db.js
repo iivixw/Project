@@ -1,23 +1,22 @@
-const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
+// api/db.js
+const { Pool } = require("pg");
 
-const mysql = require("mysql");
-
-const conn = mysql.createConnection({
-  host: process.env.DB_HOST || "localhost",
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || "user",
-  password: process.env.DB_PASS || "", // ← ว่าง
-  database: process.env.DB_NAME || "xampp_db",
+const pool = new Pool({
+  host: process.env.PGHOST || "postgres",
+  port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
+  database: process.env.PGDATABASE || "appdb",
+  user: process.env.PGUSER || "appuser",
+  password: process.env.PGPASSWORD || "apppass",
+  ssl: false,
 });
 
+// helper: แบบ promise
+const query = (text, params) => pool.query(text, params);
 
-conn.connect((err) => {
-  if (err) {
-    console.error("ไม่สามารถเชื่อมต่อฐานข้อมูลได้:", err);
-    process.exit(1);
-  }
-  console.log("MySQL connected!");
-});
+// ตัวอย่างทดสอบ
+async function ping() {
+  const { rows } = await pool.query("SELECT NOW() as now");
+  return rows[0].now;
+}
 
-module.exports = conn;
+module.exports = { pool, query, ping };

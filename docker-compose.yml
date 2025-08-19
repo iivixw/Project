@@ -1,102 +1,94 @@
 version: "3.9"
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: mysql
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: appdb
-      MYSQL_USER: appuser
-      MYSQL_PASSWORD: apppass
-      # ปิดกำแพงรหัสผ่านแบบเก่า ถ้าแอพคุณต้องการ ให้คงค่า default ไว้ถ้าไม่จำเป็น
-      # MYSQL_ALLOW_EMPTY_PASSWORD: "no"
-    command: --default-authentication-plugin=mysql_native_password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: rootpass
+      POSTGRES_DB: appdb
     ports:
-      - "3307:3306" # ด้านนอกเครื่องใช้ 3307 (ตามที่เคยพยายามต่อ), ภายในคอนเทนเนอร์ยังคง 3306
+      - "5433:5432"               # ภายนอก 5433 -> ภายใน 5432
     volumes:
-      - db_data:/var/lib/mysql
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test:
-        ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d appdb"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: adminpass
+    ports:
+      - "8085:80"                 # http://202.28.49.122:8085
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
 
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
     container_name: api
-    env_file:
-      - ./api/.env
     environment:
-      # หากไม่มีใน .env จะใช้ค่าด้านล่างเป็นค่าเริ่ม
-      DB_HOST: mysql
-      DB_PORT: "3306"
-      DB_NAME: appdb
-      DB_USER: appuser
-      DB_PASS: apppass
-      PORT: "5000"
+      NODE_ENV: production
+      PORT: 5000
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: appdb
+      PGUSER: appuser
+      PGPASSWORD: apppass
+      CORS_ORIGIN: "http://202.28.49.122"
+      BASE_URL: "http://202.28.49.122"
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     ports:
       - "5000:5000"
-    volumes:
-      - ./api:/usr/src/app
-      - /usr/src/app/node_modules
 
-  waste:
+  web:
     build:
       context: ./waste
-    container_name: waste
+      dockerfile: Dockerfile
+    container_name: web
     environment:
-      # สำหรับ Vite/CRA ให้ dev server bind 0.0.0.0
-      HOST: 0.0.0.0
-      PORT: "5173" # ถ้าเป็น CRA เปลี่ยนเป็น 3000 ได้
-      # ถ้าต้องเรียก API ภายนอก
-      VITE_API_URL: http://localhost:5000
-      REACT_APP_API_URL: http://localhost:5000
+      # ให้ build ฝั่ง client ชี้ api ที่ไอพีจริง
+      VITE_API_URL: "http://202.28.49.122:5000"
+      REACT_APP_API_URL: "http://202.28.49.122:5000"
     ports:
-      - "5173:5173" # ถ้าใช้ CRA เปลี่ยนเป็น "3000:3000"
-    working_dir: /usr/src/app
-    volumes:
-      - ./waste:/usr/src/app
-      - /usr/src/app/node_modules
-    command: sh -c "npm install && (npm run dev -- --host || npm start -- --host)"
+      - "80:80"                    # เปิดหน้าเว็บที่พอร์ต 80 ของ 202.28.49.122
+    depends_on:
+      - api
 
-  xampp:
+  php:
     build:
       context: ./xampp
       dockerfile: Dockerfile
-    container_name: xampp
-    depends_on:
-      mysql:
-        condition: service_healthy
+    container_name: php
     environment:
-      PHP_DISPLAY_ERRORS: "On"
-      DB_HOST: mysql
-      DB_PORT: "3306"
+      APP_ENV: production
+      DB_DRIVER: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_NAME: appdb
       DB_USER: appuser
       DB_PASS: apppass
     ports:
       - "8080:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - ./xampp:/var/www/html
 
-  phpmyadmin:
-    image: phpmyadmin:5
-    container_name: phpmyadmin
-    depends_on:
-      - mysql
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      UPLOAD_LIMIT: 256M
-    ports:
-      - "8085:80"
-
 volumes:
-  db_data:
+  pg_data:
+  pgadmin_data:
